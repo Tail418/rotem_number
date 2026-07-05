@@ -1,0 +1,13 @@
+{
+  "name": "rodem-cafe-tv",
+  "version": "1.0.0",
+  "description": "로뎀카페 주문번호 안내 시스템",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}

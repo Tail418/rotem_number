@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>로뎀카페 - 주문번호 안내</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root {
+    --bg: #2b211a;
+    --panel: #3a2e24;
+    --cream: #f4ead9;
+    --accent: #d98e4a;
+    --ready-glow: #6fbf73;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    overflow: hidden;
+  }
+  .header {
+    text-align: center;
+    padding: 28px 0 18px;
+  }
+  .header h1 {
+    margin: 0;
+    font-size: 40px;
+    letter-spacing: 4px;
+    color: var(--accent);
+    font-weight: 800;
+  }
+  .header p {
+    margin: 6px 0 0;
+    font-size: 16px;
+    color: #cbb89a;
+    letter-spacing: 2px;
+  }
+  .board {
+    display: flex;
+    height: calc(100% - 110px);
+    gap: 20px;
+    padding: 0 24px 24px;
+  }
+  .col {
+    flex: 1;
+    background: var(--panel);
+    border-radius: 20px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .col-title {
+    font-size: 26px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 3px solid rgba(255,255,255,0.08);
+    letter-spacing: 2px;
+  }
+  .col-title.preparing { color: #e8b96a; }
+  .col-title.ready { color: var(--ready-glow); }
+
+  .numbers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-content: flex-start;
+    overflow-y: auto;
+  }
+  .chip {
+    background: rgba(255,255,255,0.06);
+    border-radius: 16px;
+    font-size: 54px;
+    font-weight: 800;
+    padding: 18px 30px;
+    min-width: 120px;
+    text-align: center;
+    border: 2px solid rgba(255,255,255,0.08);
+  }
+  .col-title.preparing ~ .numbers .chip {
+    color: #ffd9a0;
+  }
+  .ready-numbers .chip {
+    color: #d7ffda;
+    background: rgba(111,191,115,0.15);
+    border-color: rgba(111,191,115,0.4);
+    animation: pop 0.5s ease;
+  }
+  @keyframes pop {
+    0% { transform: scale(0.6); opacity: 0; }
+    60% { transform: scale(1.12); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+  .empty {
+    color: #8a7861;
+    font-size: 20px;
+    text-align: center;
+    width: 100%;
+    margin-top: 40px;
+  }
+  .unlock-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 15, 10, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    cursor: pointer;
+  }
+  .unlock-overlay p {
+    color: var(--cream);
+    font-size: 28px;
+    letter-spacing: 2px;
+    padding: 40px 60px;
+    border: 2px solid var(--accent);
+    border-radius: 20px;
+  }
+</style>
+</head>
+<body>
+  <div class="unlock-overlay" id="unlockOverlay">
+    <p>화면을 터치하면 음성 안내가 시작됩니다</p>
+  </div>
+  <div class="header">
+    <h1>로뎀카페</h1>
+    <p>ORDER STATUS</p>
+  </div>
+  <div class="board">
+    <div class="col">
+      <div class="col-title preparing">준비중</div>
+      <div class="numbers" id="preparing-list"></div>
+    </div>
+    <div class="col">
+      <div class="col-title ready">준비완료</div>
+      <div class="numbers ready-numbers" id="ready-list"></div>
+    </div>
+  </div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io();
+  const unlockOverlay = document.getElementById('unlockOverlay');
+  unlockOverlay.addEventListener('click', () => {
+    // 브라우저 자동재생 정책 해제용: 사용자 클릭 시점에 무음 발화로 오디오 컨텍스트를 미리 열어둠
+    const primer = new SpeechSynthesisUtterance(' ');
+    speechSynthesis.speak(primer);
+    unlockOverlay.remove();
+  });
+  const preparingList = document.getElementById('preparing-list');
+  const readyList = document.getElementById('ready-list');
+
+  function render(state) {
+    renderCol(preparingList, state.preparing);
+    renderCol(readyList, state.ready);
+  }
+
+  function renderCol(el, arr) {
+    if (!arr.length) {
+      el.innerHTML = '<div class="empty">-</div>';
+      return;
+    }
+    el.innerHTML = arr.map(n => `<div class="chip">${n}</div>`).join('');
+  }
+
+  socket.on('state', render);
+
+  socket.on('announce', (number) => {
+    speak(`${number}번 형제자매님 음료 준비되었습니다`);
+  });
+
+  let voicesReady = false;
+  let koreanVoice = null;
+  function loadVoices() {
+    const voices = speechSynthesis.getVoices();
+    koreanVoice = voices.find(v => v.lang === 'ko-KR') || voices.find(v => v.lang.startsWith('ko')) || null;
+    voicesReady = voices.length > 0;
+  }
+  speechSynthesis.onvoiceschanged = loadVoices;
+  loadVoices();
+
+  function speak(text) {
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'ko-KR';
+    if (koreanVoice) utter.voice = koreanVoice;
+    utter.rate = 0.95;
+    speechSynthesis.speak(utter);
+  }
+</script>
+</body>
+</html>
