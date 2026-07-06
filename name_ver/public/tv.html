@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>로뎀카페 - 주문번호 안내</title>
+<title>로뎀카페 - 주문자 안내</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   :root {
@@ -74,12 +74,14 @@
   .chip {
     background: rgba(255,255,255,0.06);
     border-radius: 16px;
-    font-size: 54px;
+    font-size: 42px;
     font-weight: 800;
     padding: 18px 30px;
     min-width: 120px;
     text-align: center;
     border: 2px solid rgba(255,255,255,0.08);
+    white-space: nowrap;
+    flex: 0 0 auto;
   }
   .col-title.preparing ~ .numbers .chip {
     color: #ffd9a0;
@@ -159,18 +161,24 @@
     renderCol(readyList, state.ready);
   }
 
+  function escapeHtml(str) {
+    return str.replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
   function renderCol(el, arr) {
     if (!arr.length) {
       el.innerHTML = '<div class="empty">-</div>';
       return;
     }
-    el.innerHTML = arr.map(n => `<div class="chip">${n}</div>`).join('');
+    el.innerHTML = arr.map(n => `<div class="chip">${escapeHtml(n)}</div>`).join('');
   }
 
   socket.on('state', render);
 
-  socket.on('announce', (number) => {
-    enqueueSpeech(`${number}번 성도님 음료 준비되었습니다`);
+  socket.on('announce', (name) => {
+    enqueueSpeech(`${name} 형제자매님 음료 준비되었습니다`);
   });
 
   // 장난감/캐릭터 음성(로봇 소리, 애니메이션 목소리 등)은 안내 방송에 어울리지 않아 제외
