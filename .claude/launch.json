@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["server.js"],
       "port": 3000
+    },
+    {
+      "name": "rodem-cafe-name-server",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["name_ver/server.js"],
+      "port": 3001
     }
   ]
 }
