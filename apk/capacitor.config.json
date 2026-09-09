@@ -1,0 +1,10 @@
+{
+  "appId": "com.rodemcafe.admin",
+  "appName": "RodemCafeAdmin",
+  "webDir": "www",
+  "server": {
+    "cleartext": true,
+    "androidScheme": "http",
+    "allowNavigation": ["*"]
+  }
+}

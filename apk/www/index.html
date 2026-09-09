@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>로뎀카페 관리 앱 설정</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+  :root {
+    --bg: #f7f1e8;
+    --panel: #ffffff;
+    --brown: #4a3826;
+    --accent: #d98e4a;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg);
+    color: var(--brown);
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    width: 100%;
+    max-width: 420px;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 24px;
+    color: var(--accent);
+    margin: 0 0 6px;
+    letter-spacing: 1px;
+  }
+  p.desc {
+    font-size: 14px;
+    color: #8a7861;
+    margin: 0 0 28px;
+    line-height: 1.5;
+  }
+  input {
+    width: 100%;
+    font-size: 20px;
+    padding: 16px;
+    border-radius: 14px;
+    border: 2px solid #e0d3bf;
+    text-align: center;
+    font-weight: 700;
+    color: var(--brown);
+    margin-bottom: 14px;
+  }
+  button {
+    width: 100%;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    padding: 16px;
+    font-size: 18px;
+    font-weight: 800;
+  }
+  .hint {
+    margin-top: 16px;
+    font-size: 12px;
+    color: #b3a48c;
+    line-height: 1.6;
+  }
+  .error {
+    color: #d9534f;
+    font-size: 13px;
+    margin: -6px 0 14px;
+    min-height: 16px;
+  }
+  .loading {
+    font-size: 15px;
+    color: #8a7861;
+  }
+</style>
+</head>
+<body>
+  <div class="card" id="loadingCard">
+    <p class="loading">불러오는 중...</p>
+  </div>
+
+  <div class="card" id="formCard" style="display:none;">
+    <h1>로뎀카페 관리</h1>
+    <p class="desc">노트북 서버 주소를 입력하세요<br>(예: 192.168.0.5:3000)</p>
+    <input id="addrInput" type="text" placeholder="192.168.0.5:3000" autocapitalize="off" autocorrect="off">
+    <div class="error" id="errorMsg"></div>
+    <button id="connectBtn">접속</button>
+    <p class="hint">노트북에서 node server.js 실행 시 콘솔에 나오는 주소를 입력하면 됩니다.<br>나중에 주소를 바꾸려면 뒤로가기 버튼을 누르면 이 화면으로 돌아옵니다.</p>
+  </div>
+
+<script>
+  var STORAGE_KEY = 'rodemcafe_server_addr';
+
+  function normalizeAddr(raw) {
+    var val = raw.trim();
+    val = val.replace(/^https?:\/\//i, '');
+    val = val.replace(/\/+$/, '');
+    return val;
+  }
+
+  function getSavedAddr() {
+    try {
+      // Capacitor Preferences 플러그인이 준비되기 전에도 즉시 접속할 수 있도록
+      // localStorage에도 함께 저장/조회한다 (WebView 내 동일 오리진에서 영속적으로 유지됨).
+      return window.localStorage.getItem(STORAGE_KEY);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveAddr(addr) {
+    try { window.localStorage.setItem(STORAGE_KEY, addr); } catch (e) {}
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Preferences) {
+      window.Capacitor.Plugins.Preferences.set({ key: STORAGE_KEY, value: addr });
+    }
+  }
+
+  function goToAdmin(addr) {
+    window.location.href = 'http://' + addr + '/admin.html';
+  }
+
+  function showForm(prefill) {
+    document.getElementById('loadingCard').style.display = 'none';
+    document.getElementById('formCard').style.display = 'block';
+    if (prefill) document.getElementById('addrInput').value = prefill;
+  }
+
+  // 서버가 꺼져있거나 IP가 바뀌어 응답이 없을 때, 화면이 "불러오는 중"에서
+  // 아무 안내 없이 무한정 멈춰있지 않도록 접속 전에 먼저 연결 가능 여부를 확인한다.
+  function checkReachable(addr, timeoutMs) {
+    return new Promise(function (resolve) {
+      var controller = new AbortController();
+      var timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+      fetch('http://' + addr + '/admin.html', { mode: 'no-cors', signal: controller.signal, cache: 'no-store' })
+        .then(function () { clearTimeout(timer); resolve(true); })
+        .catch(function () { clearTimeout(timer); resolve(false); });
+    });
+  }
+
+  function attemptConnect(addr, showFormOnFail) {
+    var errorEl = document.getElementById('errorMsg');
+    checkReachable(addr, 4000).then(function (ok) {
+      if (ok) {
+        goToAdmin(addr);
+      } else {
+        showForm(addr);
+        if (errorEl) errorEl.textContent = '서버(' + addr + ')에 연결할 수 없습니다. 노트북 서버 실행 여부와 와이파이 연결을 확인해주세요.';
+      }
+    });
+  }
+
+  document.getElementById('connectBtn').addEventListener('click', function () {
+    var raw = document.getElementById('addrInput').value;
+    var addr = normalizeAddr(raw);
+    var errorEl = document.getElementById('errorMsg');
+    if (!addr) {
+      errorEl.textContent = '서버 주소를 입력해주세요.';
+      return;
+    }
+    errorEl.textContent = '연결 확인 중...';
+    saveAddr(addr);
+    attemptConnect(addr);
+  });
+
+  document.getElementById('addrInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') document.getElementById('connectBtn').click();
+  });
+
+  // 뒤로가기로 이 화면에 돌아왔을 때 바로 재접속하지 않고, 저장된 주소를 입력창에 채워서 보여준다.
+  var params = new URLSearchParams(window.location.search);
+  var forceSettings = params.get('settings') === '1';
+  var saved = getSavedAddr();
+
+  if (saved && !forceSettings) {
+    attemptConnect(saved);
+  } else {
+    showForm(saved || '');
+  }
+</script>
+</body>
+</html>

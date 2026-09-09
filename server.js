@@ -13,8 +13,7 @@ app.use(express.static('public'));
 
 // 서버 메모리 상태
 let state = {
-  preparing: [], // 준비중 번호 목록
-  ready: []       // 준비완료 번호 목록
+  ready: [] // 준비완료 번호 목록
 };
 
 function broadcastState() {
@@ -26,43 +25,32 @@ io.on('connection', (socket) => {
   socket.emit('state', state);
 
   socket.on('add-number', (number) => {
+    // 번호를 입력하면 바로 준비완료 처리 + 음성 안내
     const num = String(number).trim();
     if (!num) return;
-    if (state.preparing.includes(num) || state.ready.includes(num)) return;
-    state.preparing.push(num);
-    broadcastState();
-  });
-
-  socket.on('mark-ready', (number) => {
-    const num = String(number);
-    const idx = state.preparing.indexOf(num);
-    if (idx === -1) return;
-    state.preparing.splice(idx, 1);
+    if (state.ready.includes(num)) return;
     state.ready.push(num);
     broadcastState();
     io.emit('announce', num);
   });
 
-  socket.on('undo-ready', (number) => {
-    // 완료 목록에서 다시 준비중으로 되돌리기 (실수 처리용)
+  socket.on('delete-number', (number) => {
     const num = String(number);
     const idx = state.ready.indexOf(num);
     if (idx === -1) return;
     state.ready.splice(idx, 1);
-    state.preparing.push(num);
     broadcastState();
   });
 
-  socket.on('remove-preparing', (number) => {
+  socket.on('re-announce', (number) => {
+    // 상태 변경 없이 음성 안내만 다시 재생
     const num = String(number);
-    const idx = state.preparing.indexOf(num);
-    if (idx === -1) return;
-    state.preparing.splice(idx, 1);
-    broadcastState();
+    if (!state.ready.includes(num)) return;
+    io.emit('announce', num);
   });
 
   socket.on('reset-all', () => {
-    state = { preparing: [], ready: [] };
+    state = { ready: [] };
     broadcastState();
   });
 });
@@ -81,7 +69,7 @@ function getLocalIp() {
 
 server.listen(PORT, () => {
   const ip = getLocalIp();
-  console.log('로뎀카페 주문번호 시스템이 실행되었습니다.');
+  console.log('아인카페 주문번호 시스템이 실행되었습니다.');
   console.log('');
   console.log(`  TV 화면    : http://localhost:${PORT}/tv.html`);
   console.log(`  직원 입력  : http://${ip}:${PORT}/admin.html  (갤럭시탭에서 이 주소로 접속)`);

@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>로뎀카페 - 주문번호 안내</title>
+<title>아인카페 - 주문번호 안내</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
   :root {
@@ -61,7 +61,6 @@
     border-bottom: 3px solid rgba(255,255,255,0.08);
     letter-spacing: 2px;
   }
-  .col-title.preparing { color: #e8b96a; }
   .col-title.ready { color: var(--ready-glow); }
 
   .numbers {
@@ -80,9 +79,6 @@
     min-width: 120px;
     text-align: center;
     border: 2px solid rgba(255,255,255,0.08);
-  }
-  .col-title.preparing ~ .numbers .chip {
-    color: #ffd9a0;
   }
   .ready-numbers .chip {
     color: #d7ffda;
@@ -127,14 +123,10 @@
     <p>화면을 터치하면 음성 안내가 시작됩니다</p>
   </div>
   <div class="header">
-    <h1>로뎀카페</h1>
+    <h1>아인카페</h1>
     <p>ORDER STATUS</p>
   </div>
   <div class="board">
-    <div class="col">
-      <div class="col-title preparing">준비중</div>
-      <div class="numbers" id="preparing-list"></div>
-    </div>
     <div class="col">
       <div class="col-title ready">준비완료</div>
       <div class="numbers ready-numbers" id="ready-list"></div>
@@ -151,11 +143,9 @@
     speechSynthesis.speak(primer);
     unlockOverlay.remove();
   });
-  const preparingList = document.getElementById('preparing-list');
   const readyList = document.getElementById('ready-list');
 
   function render(state) {
-    renderCol(preparingList, state.preparing);
     renderCol(readyList, state.ready);
   }
 
